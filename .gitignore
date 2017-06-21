@@ -24,3 +24,7 @@ build/
 
 # Profile files
 .profile
+
+api.py
+testharness.py
+*.pyc

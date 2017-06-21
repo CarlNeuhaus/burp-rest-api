@@ -27,6 +27,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileCopyUtils;
 
+import java.io.UnsupportedEncodingException;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -168,6 +169,49 @@ public class BurpService {
                      .doActiveScan(url.getHost(), url.getPort(), useHttps,
                            iHttpRequestResponse.getRequest());
                scans.addItem(url.toExternalForm(), iScanQueueItem);
+            }
+         }
+         return true;
+      } else {
+         log.info("No Scan is performed as the {} URL is not in scope.", baseUrl);
+         return false;
+      }
+   }
+   public boolean passiveScan(String baseUrl)
+         throws MalformedURLException {
+      boolean inScope = isInScope(baseUrl);
+      log.info("Total SiteMap size: {}", BurpExtender.getInstance().getCallbacks().getSiteMap("").length);
+      log.info("Is {} in Scope: {}", baseUrl, inScope);
+      if (inScope) {
+         IHttpRequestResponse[] siteMapInScope = BurpExtender.getInstance().getCallbacks().getSiteMap(baseUrl);
+         log.info("Number of URLs submitting for Passive Scan: {}", siteMapInScope.length);
+         for (IHttpRequestResponse iHttpRequestResponse : siteMapInScope) {
+            // passive scanner requires a response and if there is not one it
+            // will die. Need to fix this as we may still want to scan just the
+            // request
+            URL url = BurpExtender.getInstance().getHelpers().analyzeRequest(iHttpRequestResponse)
+                  .getUrl();
+            if (url.toExternalForm().startsWith(baseUrl)) {
+               
+               boolean useHttps = url.getProtocol().equalsIgnoreCase("HTTPS");
+               log.debug("Submitting Active Scan for the URL {}", url.toExternalForm());
+              
+               // handle case when no response
+               if (iHttpRequestResponse.getResponse() == null){
+                 log.debug("URL does not have a response, setting 13 as response");
+                 byte[] blankResponse = new byte[13];
+                 BurpExtender.getInstance().getCallbacks()
+                     .doPassiveScan(url.getHost(), url.getPort(), useHttps,
+                           iHttpRequestResponse.getRequest(), blankResponse);
+                 //iHttpRequestResponse.setResponse(errorMessage);
+                 //log.info("URL does not have a response, ignoring");
+                 //continue;
+               } else {
+               BurpExtender.getInstance().getCallbacks()
+                     .doPassiveScan(url.getHost(), url.getPort(), useHttps,
+                           iHttpRequestResponse.getRequest(), iHttpRequestResponse.getResponse());
+               //scans.addItem(url.toExternalForm(), iScanQueueItem);
+               }
             }
          }
          return true;

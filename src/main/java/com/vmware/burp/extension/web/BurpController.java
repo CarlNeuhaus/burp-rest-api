@@ -337,6 +337,34 @@ public class BurpController {
       log.info("Burp state is reset to clean");
    }
 
+   @ApiOperation(value = "Send requests / responses to passive scanner", notes = "Scans through Burp Sitemap and sends all HTTP requests with url starting with baseUrl to Burp Scanner for active scan.")
+	 @ApiImplicitParams({
+	          @ApiImplicitParam(name = "baseUrl", value = "Base Url to submit for Active scan.", required = true, dataType = "string", paramType = "query")
+	    })
+   @ApiResponses(value = {
+         @ApiResponse(code = 200, message = "Success"),
+         @ApiResponse(code = 400, message = "Bad Request"),
+         @ApiResponse(code = 409, message = "Conflict"),
+         @ApiResponse(code = 500, message = "Failure")
+   })
+
+   @RequestMapping(method = POST, value = "/scanner/scans/passive")
+   public void passiveScan(@RequestParam(value = "baseUrl") String baseUrl)
+         throws MalformedURLException {
+      if (StringUtils.isEmpty(baseUrl)) {
+         throw new IllegalArgumentException("The 'baseUrl' parameter in payload must not be null or empty.");
+      }
+
+      boolean inScope = burp.isInScope(baseUrl);
+      log.info("Is {} in Scope: {}", baseUrl, inScope);
+      if (!inScope) {
+         log.info("Scan is NOT performed as the {} URL is not in scope.", baseUrl);
+         throw new IllegalStateException("The 'baseUrl' is NOT in scope. Set the 'baseUrl' scope to true before retry.");
+      }
+
+      burp.passiveScan(baseUrl);
+   }
+
    @ApiOperation(value = "Stop Burp Suite", notes = "This will exit Burp Suite. Use with caution: the API will not work after this endpoint has been called. You have to restart Burp from command-line to re-enable te API.")
    @ApiResponses(value = {
          @ApiResponse(code = 200, message = "Success"),
